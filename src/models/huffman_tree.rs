@@ -5,7 +5,7 @@ use std::{
 };
 
 use super::node::Node;
-struct HuffmanTree<T> {
+pub struct HuffmanTree<T> {
     root: Option<Node<T>>,
 }
 
@@ -14,11 +14,17 @@ where
     T: Eq + Hash + Copy + Ord + ToString,
 {
     pub fn from(values: &[T]) -> Self {
-        let map = Self::get_freq_using_btreemap(values);
-        let sorted_vec = Self::sort_map_by_freq(map);
+        let sorted_vec = Self::get_tree_as_vec(values);
         let tree = Self::build_tree(sorted_vec);
 
         Self { root: tree }
+    }
+
+    pub fn get_tree_as_vec(values: &[T]) -> Vec<T> {
+        let map = Self::get_freq_using_btreemap(values);
+        let sorted_vec = Self::sort_map_by_freq(map);
+
+        sorted_vec
     }
 
     pub fn get_root(&self) -> &Option<Node<T>> {

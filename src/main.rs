@@ -1,4 +1,5 @@
-mod algo;
+mod coding;
+mod models;
 
 fn main() {
     println!("Hello, world!");
