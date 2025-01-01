@@ -1,4 +1,5 @@
 mod coding;
+mod errors;
 mod models;
 
 fn main() {

@@ -328,7 +328,7 @@ mod tests {
 
     #[test]
     fn test_print_tree() {
-        let vec: Vec<char> = "Welcome to my world".chars().collect();
+        let vec: Vec<char> = "Nguyen Duy Uyen iu chi Beo".chars().collect();
         let tree = HuffmanTree::from(&vec);
 
         tree.print_tree_pretty();
