@@ -1,17 +1,70 @@
 use std::{
     collections::{BTreeMap, HashMap},
+    fmt::{format, Display},
     hash::Hash,
     usize,
 };
 
+use crate::errors::huffman_error::HuffmanError;
+
 use super::node::Node;
+
+pub struct HuffmanLeaf<T> {
+    pub freq: usize,
+    pub value: T,
+}
+
+impl<T> HuffmanLeaf<T> {
+    pub fn new(freq: usize, value: T) -> Self {
+        Self {
+            freq: freq,
+            value: value,
+        }
+    }
+}
+
+pub struct HuffmanNode<T> {
+    freq: usize,
+    value: Option<T>,
+}
+
+impl<T> HuffmanNode<T> {
+    pub fn new(freq: usize, value: Option<T>) -> Self {
+        Self {
+            freq: freq,
+            value: value,
+        }
+    }
+
+    pub fn from_leaf(leaf: HuffmanLeaf<T>) -> Self {
+        Self {
+            freq: leaf.freq,
+            value: Some(leaf.value),
+        }
+    }
+}
+
+impl<T> ToString for HuffmanNode<T>
+where
+    T: Display,
+{
+    fn to_string(&self) -> String {
+        let result = match &self.value {
+            Some(c) => format!("C: {} - F:{}", c, self.freq),
+            None => format!("None - F:{}", self.freq),
+        };
+        result
+    }
+}
+
 pub struct HuffmanTree<T> {
-    root: Option<Node<T>>,
+    root: Option<Node<HuffmanNode<T>>>,
 }
 
 impl<T> HuffmanTree<T>
 where
     T: Eq + Hash + Copy + Ord + ToString,
+    HuffmanNode<T>: ToString,
 {
     pub fn from(values: &[T]) -> Self {
         let sorted_vec = Self::get_tree_as_vec(values);
@@ -20,34 +73,69 @@ where
         Self { root: tree }
     }
 
-    pub fn get_tree_as_vec(values: &[T]) -> Vec<T> {
+    pub fn get_tree_as_vec(values: &[T]) -> Vec<HuffmanLeaf<T>> {
         let map = Self::get_freq_using_btreemap(values);
         let sorted_vec = Self::sort_map_by_freq(map);
 
         sorted_vec
     }
 
-    pub fn get_root(&self) -> &Option<Node<T>> {
+    pub fn get_root(&self) -> &Option<Node<HuffmanNode<T>>> {
         &self.root
     }
 
-    fn build_tree(mut vec: Vec<T>) -> Option<Node<T>> {
+    fn combine(node_1: &HuffmanNode<T>, node_2: &HuffmanNode<T>) -> HuffmanNode<T> {
+        let new_freq = node_1.freq + node_2.freq;
+        HuffmanNode::new(new_freq, None)
+    }
+
+    fn build_tree(
+        mut vec: Vec<HuffmanLeaf<T>>,
+        mut bind_vec: Vec<HuffmanNode<T>>,
+    ) -> Option<Node<HuffmanNode<T>>>
+    where
+        T: ToString,
+    {
         let largest = vec.pop();
-
-        match largest {
-            Some(value) => {
-                let right = Node::new(Some(value), None, None);
-                let left = Self::build_tree(vec);
-
-                match left {
-                    Some(left) => {
-                        Some(Node::new(None, Some(Box::new(left)), Some(Box::new(right))))
-                    }
-                    None => Some(right),
-                }
+        let len = vec.len();
+        if len == 1 {
+            match vec.pop() {
+                Some(leaf) => Some(Node::new(HuffmanNode::from_leaf(leaf), None, None)),
+                None => None,
             }
-            None => None,
+        } else if len == 0 {
+            None
+        } else {
+            let min_1 = HuffmanNode::from_leaf(vec.pop().unwrap());
+            let min_2 = HuffmanNode::from_leaf(vec.pop().unwrap());
+            let new_freq = min_1.freq + min_2.freq;
+            let left_node = Node::new(min_1, None, None);
+            let right_node = Node::new(min_2, None, None);
+
+            let new_node: Node<HuffmanNode<T>> = Node::new(
+                HuffmanNode::new(new_freq, None),
+                Some(Box::new(left_node)),
+                Some(Box::new(right_node)),
+            );
+
+            // Add new node into bind_vec
+            None
         }
+
+        // match largest {
+        //     Some(value) => {
+        //         let right = Node::new(Some(value), None, None);
+        //         let left = Self::build_tree(vec);
+
+        //         match left {
+        //             Some(left) => {
+        //                 Some(Node::new(None, Some(Box::new(left)), Some(Box::new(right))))
+        //             }
+        //             None => Some(right),
+        //         }
+        //     }
+        //     None => None,
+        // }
     }
 
     fn get_freq_using_hashmap(values: &[T]) -> HashMap<T, usize> {
@@ -68,10 +156,13 @@ where
         map
     }
 
-    fn sort_map_by_freq(map: BTreeMap<T, usize>) -> Vec<T> {
+    fn sort_map_by_freq(map: BTreeMap<T, usize>) -> Vec<HuffmanLeaf<T>> {
         let mut hash_vec: Vec<(T, usize)> = map.into_iter().collect();
-        hash_vec.sort_by(|a, b| a.1.cmp(&b.1));
-        hash_vec.into_iter().map(|a| a.0).collect()
+        hash_vec.sort_by(|a, b| b.1.cmp(&a.1));
+        hash_vec
+            .into_iter()
+            .map(|a| HuffmanLeaf::new(a.1, a.0))
+            .collect()
     }
 
     fn print_tree_pretty(&self) {
