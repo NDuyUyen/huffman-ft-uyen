@@ -1,53 +1,108 @@
 use std::{
     collections::{BTreeMap, HashMap},
+    fmt::Display,
     hash::Hash,
     usize,
 };
 
 use super::node::Node;
+
+pub struct HuffmanNode<T> {
+    freq: usize,
+    value: Option<T>,
+}
+
+impl<T> HuffmanNode<T> {
+    pub fn new(freq: usize, value: Option<T>) -> Self {
+        Self {
+            freq: freq,
+            value: value,
+        }
+    }
+}
+
+impl<T> ToString for HuffmanNode<T>
+where
+    T: Display,
+{
+    fn to_string(&self) -> String {
+        let result = match &self.value {
+            Some(c) => format!("C: {} - F:{}", c, self.freq),
+            None => format!("None - F:{}", self.freq),
+        };
+        result
+    }
+}
+
 pub struct HuffmanTree<T> {
-    root: Option<Node<T>>,
+    root: Option<Node<HuffmanNode<T>>>,
 }
 
 impl<T> HuffmanTree<T>
 where
     T: Eq + Hash + Copy + Ord + ToString,
+    HuffmanNode<T>: ToString,
 {
     pub fn from(values: &[T]) -> Self {
-        let sorted_vec = Self::get_tree_as_vec(values);
-        let tree = Self::build_tree(sorted_vec);
+        let leaves = Self::build_node_leaves_vec(values);
+        let tree = Self::build_tree(leaves);
 
         Self { root: tree }
     }
 
-    pub fn get_tree_as_vec(values: &[T]) -> Vec<T> {
-        let map = Self::get_freq_using_btreemap(values);
-        let sorted_vec = Self::sort_map_by_freq(map);
-
-        sorted_vec
-    }
-
-    pub fn get_root(&self) -> &Option<Node<T>> {
+    pub fn get_root(&self) -> &Option<Node<HuffmanNode<T>>> {
         &self.root
     }
 
-    fn build_tree(mut vec: Vec<T>) -> Option<Node<T>> {
-        let largest = vec.pop();
-
-        match largest {
-            Some(value) => {
-                let right = Node::new(Some(value), None, None);
-                let left = Self::build_tree(vec);
-
-                match left {
-                    Some(left) => {
-                        Some(Node::new(None, Some(Box::new(left)), Some(Box::new(right))))
-                    }
-                    None => Some(right),
-                }
+    fn combine(
+        left: Option<Node<HuffmanNode<T>>>,
+        right: Option<Node<HuffmanNode<T>>>,
+    ) -> Node<HuffmanNode<T>> {
+        let mut new_freq: usize = 0;
+        let left_node = match left {
+            Some(node) => {
+                new_freq += node.get_value().freq;
+                Some(Box::new(node))
             }
             None => None,
+        };
+        let right_node = match right {
+            Some(node) => {
+                new_freq += node.get_value().freq;
+                Some(Box::new(node))
+            }
+            None => None,
+        };
+
+        Node::new(HuffmanNode::new(new_freq, None), left_node, right_node)
+    }
+
+    fn build_tree(mut nodes: Vec<Node<HuffmanNode<T>>>) -> Option<Node<HuffmanNode<T>>>
+    where
+        T: ToString,
+    {
+        let mut root: Option<Node<HuffmanNode<T>>> = None;
+
+        while nodes.len() > 0 {
+            if nodes.len() == 1 {
+                let min = nodes.pop().unwrap();
+                root = Some(Self::combine(Some(min), None));
+                break;
+            } else {
+                let min_1 = nodes.pop().unwrap();
+                let min_2 = nodes.pop().unwrap();
+                let new_node = Self::combine(Some(min_1), Some(min_2));
+
+                if nodes.len() == 0 {
+                    root = Some(new_node);
+                    break;
+                } else {
+                    nodes = Self::add_node(nodes, new_node);
+                }
+            }
         }
+
+        root
     }
 
     fn get_freq_using_hashmap(values: &[T]) -> HashMap<T, usize> {
@@ -68,10 +123,23 @@ where
         map
     }
 
-    fn sort_map_by_freq(map: BTreeMap<T, usize>) -> Vec<T> {
+    fn build_node_leaves_vec(values: &[T]) -> Vec<Node<HuffmanNode<T>>> {
+        let map = Self::get_freq_using_btreemap(values);
         let mut hash_vec: Vec<(T, usize)> = map.into_iter().collect();
-        hash_vec.sort_by(|a, b| a.1.cmp(&b.1));
-        hash_vec.into_iter().map(|a| a.0).collect()
+        hash_vec.sort_by(|a, b| b.1.cmp(&a.1));
+        hash_vec
+            .into_iter()
+            .map(|a| Node::new(HuffmanNode::new(a.1, Some(a.0)), None, None))
+            .collect()
+    }
+
+    fn add_node(
+        mut nodes: Vec<Node<HuffmanNode<T>>>,
+        new_node: Node<HuffmanNode<T>>,
+    ) -> Vec<Node<HuffmanNode<T>>> {
+        nodes.push(new_node);
+        nodes.sort_by(|a, b| b.get_value().freq.cmp(&a.get_value().freq));
+        nodes
     }
 
     fn print_tree_pretty(&self) {
@@ -151,190 +219,95 @@ mod tests {
     }
 
     #[test]
-    fn test_sort_map_by_freq() {
-        let map: BTreeMap<u8, usize> = BTreeMap::from([
-            (87, 1),
-            (101, 2),
-            (108, 2),
-            (99, 1),
-            (111, 3),
-            (109, 2),
-            (32, 3),
-            (116, 1),
-            (121, 1),
-            (119, 1),
-            (114, 1),
-            (33, 3),
-            (100, 1),
-        ]);
+    fn test_build_node_leaves_vec() {
+        let value = "Welcome to my world!!!".as_bytes();
+        let result = HuffmanTree::build_node_leaves_vec(value);
+        let chars_result: Vec<u8> = result
+            .iter()
+            .map(|node| node.get_value().value.unwrap())
+            .collect();
+        let chars_expect = &[32, 33, 111, 101, 108, 109, 87, 99, 100, 114, 116, 119, 121];
+        assert_eq!(chars_result, chars_expect);
 
-        let result = HuffmanTree::sort_map_by_freq(map);
-        let expect: Vec<u8> = vec![87, 99, 100, 114, 116, 119, 121, 101, 108, 109, 32, 33, 111];
-        assert_eq!(result, expect);
+        let freqs_result: Vec<usize> = result.iter().map(|node| node.get_value().freq).collect();
+        let freqs_expect: &[usize; 13] = &[3, 3, 3, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1];
+        assert_eq!(freqs_result, freqs_expect);
+    }
+
+    #[test]
+    fn test_combine() {
+        let left = Node::new(HuffmanNode::new(3, Some(32)), None, None);
+        let right = Node::new(HuffmanNode::new(1, Some(12)), None, None);
+        let root = HuffmanTree::combine(Some(left), Some(right));
+
+        assert_eq!(root.get_value().freq, 4);
+        assert!(root.get_value().value.is_none());
+        assert_eq!(root.left().unwrap().get_value().freq, 3);
+        assert_eq!(root.right().unwrap().get_value().freq, 1);
+
+        let left = Node::new(HuffmanNode::new(3, Some(32)), None, None);
+        let root = HuffmanTree::combine(Some(left), None);
+
+        assert_eq!(root.get_value().freq, 3);
+        assert_eq!(root.left().unwrap().get_value().freq, 3);
+        assert_eq!(root.left().unwrap().get_value().value, Some(32));
+        assert!(root.right().is_none());
+
+        let right = Node::new(HuffmanNode::new(3, Some(32)), None, None);
+        let root = HuffmanTree::combine(None, Some(right));
+
+        assert_eq!(root.get_value().freq, 3);
+        assert_eq!(root.right().unwrap().get_value().freq, 3);
+        assert_eq!(root.right().unwrap().get_value().value, Some(32));
+        assert!(root.left().is_none());
+
+        let root: Node<HuffmanNode<u8>> = HuffmanTree::combine(None, None);
+
+        assert_eq!(root.get_value().freq, 0);
+        assert!(root.left().is_none());
+        assert!(root.right().is_none());
+    }
+
+    #[test]
+    fn test_combine_complex() {
+        let left_left = Node::new(HuffmanNode::new(1, Some(1)), None, None);
+        let left_right = Node::new(HuffmanNode::new(2, Some(3)), None, None);
+        let left = HuffmanTree::combine(Some(left_left), Some(left_right));
+        let right = Node::new(HuffmanNode::new(4, Some(5)), None, None);
+        let root = HuffmanTree::combine(Some(left), Some(right));
+
+        assert_eq!(root.get_value().freq, 7);
+        assert!(root.get_value().value.is_none());
+        assert_eq!(root.left().unwrap().get_value().freq, 3);
+        assert!(root.left().unwrap().get_value().value.is_none());
+        assert_eq!(root.right().unwrap().get_value().freq, 4);
+        assert_eq!(root.right().unwrap().get_value().value, Some(5));
+        assert_eq!(root.left().unwrap().left().unwrap().get_value().freq, 1);
+        assert_eq!(
+            root.left().unwrap().left().unwrap().get_value().value,
+            Some(1)
+        );
+        assert_eq!(root.left().unwrap().right().unwrap().get_value().freq, 2);
+        assert_eq!(
+            root.left().unwrap().right().unwrap().get_value().value,
+            Some(3)
+        );
     }
 
     #[test]
     fn test_build_tree() {
-        let vec = vec!['a', 'b', 'c', 'd', 'e'];
-        let tree = HuffmanTree::build_tree(vec);
-        let tree_ref = tree.as_ref().unwrap();
+        let value = "Welcome to my world!!!".as_bytes();
+        let node_leaves = HuffmanTree::build_node_leaves_vec(value);
+        let tree = HuffmanTree::build_tree(node_leaves);
 
         assert!(tree.is_some());
-        assert_eq!(*tree_ref.right().unwrap().get_value(), Some('e'));
-        assert_eq!(
-            *tree_ref.left().unwrap().right().unwrap().get_value(),
-            Some('d')
-        );
-        assert_eq!(
-            *tree_ref
-                .left()
-                .unwrap()
-                .left()
-                .unwrap()
-                .right()
-                .unwrap()
-                .get_value(),
-            Some('c')
-        );
-        assert_eq!(
-            *tree_ref
-                .left()
-                .unwrap()
-                .left()
-                .unwrap()
-                .left()
-                .unwrap()
-                .right()
-                .unwrap()
-                .get_value(),
-            Some('b')
-        );
-        assert_eq!(
-            *tree_ref
-                .left()
-                .unwrap()
-                .left()
-                .unwrap()
-                .left()
-                .unwrap()
-                .left()
-                .unwrap()
-                .get_value(),
-            Some('a')
-        );
-        assert!(tree_ref
-            .left()
-            .unwrap()
-            .left()
-            .unwrap()
-            .left()
-            .unwrap()
-            .left()
-            .unwrap()
-            .left()
-            .is_none());
-
-        let vec: Vec<u8> = vec![123];
-        let tree = HuffmanTree::build_tree(vec);
-        let tree_ref = tree.as_ref().unwrap();
-
-        assert!(tree.is_some());
-        assert_eq!(*tree_ref.get_value(), Some(123));
-        assert!(tree_ref.left().is_none());
-        assert!(tree_ref.right().is_none());
-
-        let vec: Vec<u8> = vec![];
-        let tree = HuffmanTree::build_tree(vec);
-
-        assert!(tree.is_none());
+        assert_eq!(tree.unwrap().get_value().freq, 22);
     }
 
     #[test]
     fn test_from() {
-        let vec = "eeebeebcadcd".as_bytes();
-        let tree = HuffmanTree::from(vec);
-        let root = tree.get_root();
-        let tree_ref = root.as_ref().unwrap();
-
-        assert!(root.is_some());
-        assert_eq!(*tree_ref.right().unwrap().get_value(), Some(101));
-        assert_eq!(
-            *tree_ref.left().unwrap().right().unwrap().get_value(),
-            Some(100)
-        );
-        assert_eq!(
-            *tree_ref
-                .left()
-                .unwrap()
-                .left()
-                .unwrap()
-                .right()
-                .unwrap()
-                .get_value(),
-            Some(99)
-        );
-        assert_eq!(
-            *tree_ref
-                .left()
-                .unwrap()
-                .left()
-                .unwrap()
-                .left()
-                .unwrap()
-                .right()
-                .unwrap()
-                .get_value(),
-            Some(98)
-        );
-        assert_eq!(
-            *tree_ref
-                .left()
-                .unwrap()
-                .left()
-                .unwrap()
-                .left()
-                .unwrap()
-                .left()
-                .unwrap()
-                .get_value(),
-            Some(97)
-        );
-        assert!(tree_ref
-            .left()
-            .unwrap()
-            .left()
-            .unwrap()
-            .left()
-            .unwrap()
-            .left()
-            .unwrap()
-            .left()
-            .is_none());
-
-        let vec = "U".as_bytes();
-        let tree = HuffmanTree::from(vec);
-        let root = tree.get_root();
-        let tree_ref = root.as_ref().unwrap();
-
-        assert!(root.is_some());
-        assert_eq!(*tree_ref.get_value(), Some(85));
-
-        let vec = "".as_bytes();
-        let tree = HuffmanTree::from(vec);
-        let root = tree.get_root();
-
-        assert!(root.is_none());
-    }
-
-    #[test]
-    fn test_print_tree() {
-        let vec: Vec<char> = "Nguyen Duy Uyen iu chi Beo".chars().collect();
-        let tree = HuffmanTree::from(&vec);
-
-        tree.print_tree_pretty();
-
-        let vec = "eeebeebcadcd".as_bytes();
-        let tree = HuffmanTree::from(&vec);
+        let value = "Welcome to my world!!!".as_bytes();
+        let tree = HuffmanTree::from(value);
 
         tree.print_tree_pretty();
     }
