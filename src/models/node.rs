@@ -50,6 +50,10 @@ where
         self.right = Some(Box::new(node));
     }
 
+    pub fn is_leaf(&self) -> bool {
+        self.left.is_none() && self.right.is_none()
+    }
+
     fn has_child(&self) -> bool {
         self.left.is_some() || self.right.is_some()
     }

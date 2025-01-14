@@ -5,6 +5,8 @@ use std::{
     usize,
 };
 
+use crate::errors::huffman_error::HuffmanError;
+
 use super::node::Node;
 
 pub struct HuffmanNode<T> {
@@ -50,8 +52,43 @@ where
         Self { root: tree }
     }
 
+    pub fn get_encoding_map(&self) -> Result<HashMap<T, String>, HuffmanError> {
+        let collection: HashMap<T, String> = HashMap::new();
+        let based_path = String::new();
+
+        match &self.root {
+            Some(root) => Self::collect_paths(Some(root), collection, based_path),
+            None => Err(HuffmanError::invalid_huffman_tree()),
+        }
+    }
+
     pub fn get_root(&self) -> &Option<Node<HuffmanNode<T>>> {
         &self.root
+    }
+
+    fn collect_paths(
+        node: Option<&Node<HuffmanNode<T>>>,
+        mut collection: HashMap<T, String>,
+        path: String,
+    ) -> Result<HashMap<T, String>, HuffmanError> {
+        match node {
+            Some(node) => {
+                if node.is_leaf() {
+                    match node.get_value().value {
+                        Some(v) => {
+                            collection.insert(v, path);
+                            Ok(collection)
+                        }
+                        None => Err(HuffmanError::invalid_huffman_tree()),
+                    }
+                } else {
+                    let left_result =
+                        Self::collect_paths(node.left(), collection, path.clone() + "0").unwrap();
+                    Self::collect_paths(node.right(), left_result, path.clone() + "1")
+                }
+            }
+            None => Ok(collection),
+        }
     }
 
     fn combine(
@@ -310,5 +347,30 @@ mod tests {
         let tree = HuffmanTree::from(value);
 
         tree.print_tree_pretty();
+    }
+
+    #[test]
+    fn test_get_encoding_map() {
+        let value = "Welcome to my world!!!".as_bytes();
+        let tree = HuffmanTree::from(value);
+
+        let result = tree.get_encoding_map().unwrap();
+        let expect: HashMap<u8, String> = HashMap::from([
+            (32, "110".to_string()),
+            (33, "101".to_string()),
+            (111, "100".to_string()),
+            (101, "010".to_string()),
+            (108, "1111".to_string()),
+            (109, "1110".to_string()),
+            (87, "0110".to_string()),
+            (99, "01111".to_string()),
+            (100, "01110".to_string()),
+            (114, "0001".to_string()),
+            (116, "0000".to_string()),
+            (119, "0011".to_string()),
+            (121, "0010".to_string()),
+        ]);
+
+        assert_eq!(result, expect);
     }
 }

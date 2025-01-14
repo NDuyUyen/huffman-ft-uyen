@@ -6,6 +6,11 @@ pub struct HuffmanError {
 }
 
 impl HuffmanError {
+    pub fn invalid_huffman_tree() -> Self {
+        Self {
+            msg: "The tree seems to be invalid.".to_string(),
+        }
+    }
     pub fn encoding_error() -> Self {
         Self {
             msg: "Cannot encode text".to_string(),
