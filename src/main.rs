@@ -1,4 +1,4 @@
-// mod coding;
+mod coding;
 mod errors;
 mod models;
 

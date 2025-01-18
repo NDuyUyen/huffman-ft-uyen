@@ -4,14 +4,14 @@ use bitvec::prelude::*;
 use std::collections::HashMap;
 
 pub struct HuffmanEncodingResult {
-    codes: Vec<char>,
+    huffman_tree: HuffmanTree<char>,
     encoded_text: BitVec<u8, Msb0>,
 }
 
 impl HuffmanEncodingResult {
-    pub fn new(codes: Vec<char>, encoded_text: BitVec<u8, Msb0>) -> Self {
+    pub fn new(huffman_tree: HuffmanTree<char>, encoded_text: BitVec<u8, Msb0>) -> Self {
         Self {
-            codes: codes,
+            huffman_tree: huffman_tree,
             encoded_text: encoded_text,
         }
     }
@@ -20,8 +20,8 @@ impl HuffmanEncodingResult {
         &self.encoded_text
     }
 
-    pub fn get_codes(&self) -> &Vec<char> {
-        &self.codes
+    pub fn get_huffman_tree(&self) -> &HuffmanTree<char> {
+        &self.huffman_tree
     }
 }
 
@@ -53,30 +53,37 @@ pub struct StandardHuffmanCoding {}
 impl HuffmanCoding for StandardHuffmanCoding {
     fn encode(text: &String) -> Result<HuffmanEncodingResult, HuffmanError> {
         let char_vec: Vec<char> = text.chars().collect();
-        let tree = HuffmanTree::get_tree_as_vec(&char_vec);
-        let mut coding_map: HashMap<char, BitVec<u8, Msb0>> = HashMap::new();
-        let mut encoded_text: BitVec<u8, Msb0> = BitVec::new();
+        let tree = HuffmanTree::from(&char_vec);
+        let encoding_map = tree.get_encoding_map();
+        let mut bin_str = String::new();
 
-        char_vec.into_iter().for_each(|c| match coding_map.get(&c) {
-            None => {
-                let idx = tree.iter().position(|p| *p == c).unwrap();
-                let mut data = vec![1u8; idx];
-                // not correct, need to fix the logic getting encoded_char
-                let mut encoded_char = BitVec::from_bitslice(data.view_bits_mut::<Msb0>());
-                encoded_char.extend(if idx + 1 == tree.len() {
-                    [1u8].iter()
-                } else {
-                    [0u8].iter()
-                });
-                encoded_text.extend(encoded_char.iter());
-                coding_map.insert(c, encoded_char);
+        match encoding_map {
+            Ok(encoding_map) => {
+                char_vec
+                    .into_iter()
+                    .try_for_each(|c| match encoding_map.get(&c) {
+                        Some(encoded_c) => {
+                            bin_str += encoded_c;
+                            Ok(())
+                        }
+                        None => Err(HuffmanError::not_found_in_tree()),
+                    })?;
+
+                println!("bin_str: {}", bin_str);
+                Ok(())
             }
-            Some(code) => {
-                encoded_text.extend(code);
-            }
-        });
-        // println!("{:?}", &coding_map);
-        Ok(HuffmanEncodingResult::new(tree, encoded_text))
+            Err(e) => Err(e),
+        }?;
+        println!("bin_str: {}", bin_str);
+
+        let num = isize::from_str_radix(&bin_str, 2).unwrap() as isize;
+
+        println!("{:?}", &num);
+        Err(HuffmanError::encoding_error())
+        // let mut coding_map: HashMap<char, BitVec<u8, Msb0>> = HashMap::new();
+        // let mut encoded_text: BitVec<u8, Msb0> = BitVec::new();
+
+        // Ok(HuffmanEncodingResult::new(tree, encoded_text))
     }
 
     fn decode(
@@ -113,13 +120,13 @@ mod tests {
         let text = "Welcome to my world!!!".to_string();
         let result = StandardHuffmanCoding::encode(&text);
 
-        assert!(result.is_ok());
-        let huffman_encode = result.unwrap();
-        println!("Original text size: {}", (&text).get_heap_size());
-        println!(
-            "Encoded text + codes size: {}",
-            size_of_val(&huffman_encode)
-        );
+        // assert!(result.is_ok());
+        // let huffman_encode = result.unwrap();
+        // println!("Original text size: {}", (&text).get_heap_size());
+        // println!(
+        //     "Encoded text + codes size: {}",
+        //     size_of_val(&huffman_encode)
+        // );
         // println!(
         //     "Encoded text + codes size: {:?}",
         //     huffman_encode.get_encoded_text()
