@@ -52,9 +52,9 @@ where
         Self { root: tree }
     }
 
-    pub fn get_encoding_map(&self) -> Result<HashMap<T, String>, HuffmanError> {
-        let collection: HashMap<T, String> = HashMap::new();
-        let based_path = String::new();
+    pub fn get_encoding_map(&self) -> Result<HashMap<T, Vec<bool>>, HuffmanError> {
+        let collection: HashMap<T, Vec<bool>> = HashMap::new();
+        let based_path: Vec<bool> = Vec::new();
 
         match &self.root {
             Some(root) => Self::collect_paths(Some(root), collection, based_path),
@@ -68,9 +68,9 @@ where
 
     fn collect_paths(
         node: Option<&Node<HuffmanNode<T>>>,
-        mut collection: HashMap<T, String>,
-        path: String,
-    ) -> Result<HashMap<T, String>, HuffmanError> {
+        mut collection: HashMap<T, Vec<bool>>,
+        path: Vec<bool>,
+    ) -> Result<HashMap<T, Vec<bool>>, HuffmanError> {
         match node {
             Some(node) => {
                 if node.is_leaf() {
@@ -82,9 +82,13 @@ where
                         None => Err(HuffmanError::invalid_huffman_tree()),
                     }
                 } else {
+                    let mut left_based_path = path.clone();
+                    left_based_path.push(false);
                     let left_result =
-                        Self::collect_paths(node.left(), collection, path.clone() + "0").unwrap();
-                    Self::collect_paths(node.right(), left_result, path.clone() + "1")
+                        Self::collect_paths(node.left(), collection, left_based_path).unwrap();
+                    let mut right_based_path = path.clone();
+                    right_based_path.push(true);
+                    Self::collect_paths(node.right(), left_result, right_based_path)
                 }
             }
             None => Ok(collection),
@@ -355,20 +359,22 @@ mod tests {
         let tree = HuffmanTree::from(value);
 
         let result = tree.get_encoding_map().unwrap();
-        let expect: HashMap<u8, String> = HashMap::from([
-            (32, "110".to_string()),
-            (33, "101".to_string()),
-            (111, "100".to_string()),
-            (101, "010".to_string()),
-            (108, "1111".to_string()),
-            (109, "1110".to_string()),
-            (87, "0110".to_string()),
-            (99, "01111".to_string()),
-            (100, "01110".to_string()),
-            (114, "0001".to_string()),
-            (116, "0000".to_string()),
-            (119, "0011".to_string()),
-            (121, "0010".to_string()),
+        let l = false;
+        let r = true;
+        let expect: HashMap<u8, Vec<bool>> = HashMap::from([
+            (32, vec![r, r, l]),
+            (33, vec![r, l, r]),
+            (111, vec![r, l, l]),
+            (101, vec![l, r, l]),
+            (108, vec![r, r, r, r]),
+            (109, vec![r, r, r, l]),
+            (87, vec![l, r, r, l]),
+            (99, vec![l, r, r, r, r]),
+            (100, vec![l, r, r, r, l]),
+            (114, vec![l, l, l, r]),
+            (116, vec![l, l, l, l]),
+            (119, vec![l, l, r, r]),
+            (121, vec![l, l, r, l]),
         ]);
 
         assert_eq!(result, expect);

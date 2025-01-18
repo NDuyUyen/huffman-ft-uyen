@@ -5,19 +5,19 @@ use std::collections::HashMap;
 
 pub struct HuffmanEncodingResult {
     huffman_tree: HuffmanTree<char>,
-    encoded_text: BitVec<u8, Msb0>,
+    encoded_vec: Vec<bool>,
 }
 
 impl HuffmanEncodingResult {
-    pub fn new(huffman_tree: HuffmanTree<char>, encoded_text: BitVec<u8, Msb0>) -> Self {
+    pub fn new(huffman_tree: HuffmanTree<char>, encoded_vec: Vec<bool>) -> Self {
         Self {
             huffman_tree: huffman_tree,
-            encoded_text: encoded_text,
+            encoded_vec: encoded_vec,
         }
     }
 
-    pub fn get_encoded_text(&self) -> &BitVec<u8, Msb0> {
-        &self.encoded_text
+    pub fn get_encoded_vec(&self) -> &Vec<bool> {
+        &self.encoded_vec
     }
 
     pub fn get_huffman_tree(&self) -> &HuffmanTree<char> {
@@ -55,7 +55,7 @@ impl HuffmanCoding for StandardHuffmanCoding {
         let char_vec: Vec<char> = text.chars().collect();
         let tree = HuffmanTree::from(&char_vec);
         let encoding_map = tree.get_encoding_map();
-        let mut bin_str = String::new();
+        let mut encoded_vec: Vec<bool> = Vec::new();
 
         match encoding_map {
             Ok(encoding_map) => {
@@ -63,27 +63,17 @@ impl HuffmanCoding for StandardHuffmanCoding {
                     .into_iter()
                     .try_for_each(|c| match encoding_map.get(&c) {
                         Some(encoded_c) => {
-                            bin_str += encoded_c;
+                            encoded_vec.append(&mut encoded_c.clone());
                             Ok(())
                         }
                         None => Err(HuffmanError::not_found_in_tree()),
                     })?;
-
-                println!("bin_str: {}", bin_str);
                 Ok(())
             }
             Err(e) => Err(e),
         }?;
-        println!("bin_str: {}", bin_str);
 
-        let num = isize::from_str_radix(&bin_str, 2).unwrap() as isize;
-
-        println!("{:?}", &num);
-        Err(HuffmanError::encoding_error())
-        // let mut coding_map: HashMap<char, BitVec<u8, Msb0>> = HashMap::new();
-        // let mut encoded_text: BitVec<u8, Msb0> = BitVec::new();
-
-        // Ok(HuffmanEncodingResult::new(tree, encoded_text))
+        Ok(HuffmanEncodingResult::new(tree, encoded_vec))
     }
 
     fn decode(
@@ -120,17 +110,16 @@ mod tests {
         let text = "Welcome to my world!!!".to_string();
         let result = StandardHuffmanCoding::encode(&text);
 
-        // assert!(result.is_ok());
-        // let huffman_encode = result.unwrap();
-        // println!("Original text size: {}", (&text).get_heap_size());
-        // println!(
-        //     "Encoded text + codes size: {}",
-        //     size_of_val(&huffman_encode)
-        // );
-        // println!(
-        //     "Encoded text + codes size: {:?}",
-        //     huffman_encode.get_encoded_text()
-        // );
+        assert!(result.is_ok());
+        let result_encoded_vec = result.unwrap().encoded_vec;
+        let l = false;
+        let r = true;
+        let expected_encoded_vec = vec![
+            l, r, r, l, l, r, l, r, r, r, r, l, r, r, r, r, r, l, l, r, r, r, l, l, r, l, r, r, l,
+            l, l, l, l, r, l, l, r, r, l, r, r, r, l, l, l, r, l, r, r, l, l, l, r, r, r, l, l, l,
+            l, l, r, r, r, r, r, l, r, r, r, l, r, l, r, r, l, r, r, l, r,
+        ];
+        assert_eq!(result_encoded_vec, expected_encoded_vec);
     }
 
     fn test_decode() {
