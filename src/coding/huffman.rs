@@ -1,8 +1,7 @@
 use super::super::errors::huffman_error::HuffmanError;
 use super::super::models::huffman_tree::HuffmanTree;
-use bitvec::prelude::*;
-use std::collections::HashMap;
 
+#[derive(Clone)]
 pub struct HuffmanEncodingResult {
     huffman_tree: HuffmanTree<char>,
     encoded_vec: Vec<bool>,
@@ -25,6 +24,7 @@ impl HuffmanEncodingResult {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct HuffmanDecodingResult {
     decoded_text: String,
 }
@@ -44,8 +44,8 @@ impl HuffmanDecodingResult {
 trait HuffmanCoding {
     fn encode(text: &String) -> Result<HuffmanEncodingResult, HuffmanError>;
     fn decode(
-        codes: &Vec<char>,
-        encoded_text: &BitVec<u8, Msb0>,
+        huffman_tree: HuffmanTree<char>,
+        encoded_vec: Vec<bool>,
     ) -> Result<HuffmanDecodingResult, HuffmanError>;
 }
 pub struct StandardHuffmanCoding {}
@@ -77,36 +77,29 @@ impl HuffmanCoding for StandardHuffmanCoding {
     }
 
     fn decode(
-        codes: &Vec<char>,
-        encoded_text: &BitVec<u8, Msb0>,
+        huffman_tree: HuffmanTree<char>,
+        encoded_vec: Vec<bool>,
     ) -> Result<HuffmanDecodingResult, HuffmanError> {
-        let mut iter = encoded_text.iter();
-        while iter.next().is_some() {}
+        let mut iter: std::slice::Iter<'_, bool> = encoded_vec.iter();
+        let mut decoded_text = String::new();
 
-        loop {
-            let f = iter.next();
-            match f {
-                Some(s) => {
-                    println!("{}", s);
-                }
-                None => {}
-            }
-            if iter.next().is_none() {
-                break;
+        while iter.len() > 0 {
+            match huffman_tree.decode_by_path(&mut iter) {
+                Ok(next_char) => decoded_text.push(next_char),
+                Err(e) => return Err(e),
             }
         }
-        Err(HuffmanError::encoding_error())
+
+        Ok(HuffmanDecodingResult::new(decoded_text))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use get_size::GetSize;
-    use std::mem::size_of_val;
 
     #[test]
-    fn test_encode() {
+    fn test_encode_successful() {
         let text = "Welcome to my world!!!".to_string();
         let result = StandardHuffmanCoding::encode(&text);
 
@@ -122,9 +115,73 @@ mod tests {
         assert_eq!(result_encoded_vec, expected_encoded_vec);
     }
 
-    fn test_decode() {
-        let codes = vec![
-            'W', 'c', 'd', 'r', 't', 'w', 'y', 'e', 'l', 'm', ' ', '!', 'o',
+    #[test]
+    fn test_decode_successful() {
+        let text = "Welcome to my world!!!".to_string();
+        let l = false;
+        let r = true;
+        let encoded_result = StandardHuffmanCoding::encode(&text).unwrap();
+        let tree = encoded_result.huffman_tree.clone();
+        let encoded_vec = encoded_result.encoded_vec.clone();
+        let decoded_result = StandardHuffmanCoding::decode(tree, encoded_vec);
+
+        assert!(decoded_result.is_ok());
+        assert_eq!(decoded_result.unwrap().decoded_text, text);
+
+        let input = "Welcome to my world".to_string();
+        let encoded_vec = vec![
+            l, r, r, l, l, r, l, r, r, r, r, l, r, r, r, r, r, l, l, r, r, r, l, l, r, l, r, r, l,
+            l, l, l, l, r, l, l, r, r, l, r, r, r, l, l, l, r, l, r, r, l, l, l, r, r, r, l, l, l,
+            l, l, r, r, r, r, r, l, r, r, r, l,
         ];
+        let tree = encoded_result.huffman_tree.clone();
+        let decoded_result = StandardHuffmanCoding::decode(tree, encoded_vec);
+
+        assert_eq!(decoded_result.unwrap().decoded_text, input);
+
+        let input = "Welcome to my world!!!!!!".to_string();
+        let encoded_vec = vec![
+            l, r, r, l, l, r, l, r, r, r, r, l, r, r, r, r, r, l, l, r, r, r, l, l, r, l, r, r, l,
+            l, l, l, l, r, l, l, r, r, l, r, r, r, l, l, l, r, l, r, r, l, l, l, r, r, r, l, l, l,
+            l, l, r, r, r, r, r, l, r, r, r, l, r, l, r, r, l, r, r, l, r, r, l, r, r, l, r, r, l,
+            r,
+        ];
+        let tree = encoded_result.huffman_tree.clone();
+        let decoded_result = StandardHuffmanCoding::decode(tree, encoded_vec);
+
+        assert_eq!(decoded_result.unwrap().decoded_text, input);
+
+        let input = String::new();
+        let a_part_encoded_vec: Vec<bool> = vec![];
+        let tree = encoded_result.huffman_tree.clone();
+        let decoded_result = StandardHuffmanCoding::decode(tree, a_part_encoded_vec);
+
+        assert_eq!(decoded_result.unwrap().decoded_text, input);
+    }
+
+    #[test]
+    fn test_decode_failed() {
+        let text = "Welcome to my world!!!".to_string();
+        let l = false;
+        let r = true;
+        let encoded_result = StandardHuffmanCoding::encode(&text).unwrap();
+
+        let tree = encoded_result.huffman_tree.clone();
+        let undecodable_vec = vec![
+            l, r, r, l, l, r, l, r, r, r, r, l, r, r, r, r, r, l, l, r, r, r, l, l, r, l, r, r, l,
+            l, l, l, l, r, l, l, r, r, l, r, r, r, l, l, l, r, l, r, r, l, l, l, r, r, r, l, l, l,
+            l, l, r, r, r, r, r, l, r, r, r, l, r,
+        ];
+        let decoded_result = StandardHuffmanCoding::decode(tree, undecodable_vec);
+
+        assert!(decoded_result.is_err());
+        assert_eq!(decoded_result, Err(HuffmanError::decoding_error()));
+
+        let tree = encoded_result.huffman_tree.clone();
+        let undecodable_vec = vec![l];
+        let decoded_result = StandardHuffmanCoding::decode(tree, undecodable_vec);
+
+        assert!(decoded_result.is_err());
+        assert_eq!(decoded_result, Err(HuffmanError::decoding_error()));
     }
 }

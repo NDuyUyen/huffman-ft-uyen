@@ -2,13 +2,14 @@ use std::{
     collections::{BTreeMap, HashMap},
     fmt::Display,
     hash::Hash,
+    slice::Iter,
     usize,
 };
 
 use crate::errors::huffman_error::HuffmanError;
 
-use super::node::Node;
-
+use super::node::{self, Node};
+#[derive(Clone)]
 pub struct HuffmanNode<T> {
     freq: usize,
     value: Option<T>,
@@ -36,6 +37,7 @@ where
     }
 }
 
+#[derive(Clone)]
 pub struct HuffmanTree<T> {
     root: Option<Node<HuffmanNode<T>>>,
 }
@@ -52,6 +54,10 @@ where
         Self { root: tree }
     }
 
+    pub fn get_root(&self) -> &Option<Node<HuffmanNode<T>>> {
+        &self.root
+    }
+
     pub fn get_encoding_map(&self) -> Result<HashMap<T, Vec<bool>>, HuffmanError> {
         let collection: HashMap<T, Vec<bool>> = HashMap::new();
         let based_path: Vec<bool> = Vec::new();
@@ -62,8 +68,11 @@ where
         }
     }
 
-    pub fn get_root(&self) -> &Option<Node<HuffmanNode<T>>> {
-        &self.root
+    pub fn decode_by_path(&self, iter: &mut Iter<'_, bool>) -> Result<T, HuffmanError> {
+        match &self.root {
+            Some(root) => Self::get_value_by_path(Some(root), iter),
+            None => Err(HuffmanError::invalid_huffman_tree()),
+        }
     }
 
     fn collect_paths(
@@ -92,6 +101,36 @@ where
                 }
             }
             None => Ok(collection),
+        }
+    }
+
+    fn get_value_by_path(
+        node: Option<&Node<HuffmanNode<T>>>,
+        iter: &mut Iter<'_, bool>,
+    ) -> Result<T, HuffmanError> {
+        match node {
+            Some(node) => {
+                if node.is_leaf() {
+                    match node.get_value().value {
+                        Some(v) => Ok(v),
+                        None => Err(HuffmanError::invalid_huffman_tree()),
+                    }
+                } else {
+                    match iter.next() {
+                        Some(direction) => {
+                            if *direction {
+                                // right
+                                Self::get_value_by_path(node.right(), iter)
+                            } else {
+                                // left
+                                Self::get_value_by_path(node.left(), iter)
+                            }
+                        }
+                        None => Err(HuffmanError::decoding_error()),
+                    }
+                }
+            }
+            None => Err(HuffmanError::invalid_huffman_tree()),
         }
     }
 
@@ -378,5 +417,39 @@ mod tests {
         ]);
 
         assert_eq!(result, expect);
+    }
+
+    #[test]
+    fn test_decode_by_path_successful() {
+        let text = "Welcome to my world!!!".to_string();
+        let text_as_chars: Vec<char> = text.chars().collect();
+        let tree = HuffmanTree::from(&text_as_chars);
+        let l = false;
+        let r = true;
+        let encoded_vec = vec![
+            l, r, r, l, l, r, l, r, r, r, r, l, r, r, r, r, r, l, l, r, r, r, l, l, r, l, r, r, l,
+            l, l, l, l, r, l, l, r, r, l, r, r, r, l, l, l, r, l, r, r, l, l, l, r, r, r, l, l, l,
+            l, l, r, r, r, r, r, l, r, r, r, l, r, l, r, r, l, r, r, l, r,
+        ];
+        let mut decoded_text = String::new();
+        let mut iter = encoded_vec.iter();
+        for _ in 1..23 {
+            decoded_text.push(tree.decode_by_path(&mut iter).unwrap());
+        }
+
+        assert_eq!(decoded_text, text);
+    }
+
+    #[test]
+    fn test_decode_by_path_failed() {
+        let text = "Welcome to my world!!!".to_string();
+        let text_as_chars: Vec<char> = text.chars().collect();
+        let tree = HuffmanTree::from(&text_as_chars);
+        let l = false;
+        let r = true;
+        let encoded_vec = vec![l, r];
+        let mut iter = encoded_vec.iter();
+
+        assert!(tree.decode_by_path(&mut iter).is_err());
     }
 }
