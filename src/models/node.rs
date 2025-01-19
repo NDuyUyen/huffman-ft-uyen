@@ -1,5 +1,6 @@
+#[derive(Clone)]
 pub struct Node<T> {
-    value: Option<T>,
+    value: T,
     left: Option<Box<Node<T>>>,
     right: Option<Box<Node<T>>>,
 }
@@ -8,7 +9,7 @@ impl<T> Node<T>
 where
     T: ToString,
 {
-    pub fn new(value: Option<T>, left: Option<Box<Node<T>>>, right: Option<Box<Node<T>>>) -> Self {
+    pub fn new(value: T, left: Option<Box<Node<T>>>, right: Option<Box<Node<T>>>) -> Self {
         Self {
             value: value,
             left: left,
@@ -17,13 +18,10 @@ where
     }
 
     fn get_value_str(&self) -> String {
-        match &self.value {
-            Some(value) => value.to_string(),
-            None => "".to_string(),
-        }
+        self.value.to_string()
     }
 
-    pub fn get_value(&self) -> &Option<T> {
+    pub fn get_value(&self) -> &T {
         &self.value
     }
 
@@ -35,7 +33,7 @@ where
         self.right.as_deref()
     }
 
-    pub fn append_left_by_value(&mut self, value: Option<T>) {
+    pub fn append_left_by_value(&mut self, value: T) {
         let new_node = Some(Box::new(Self::new(value, None, None)));
         self.left = new_node;
     }
@@ -44,13 +42,17 @@ where
         self.left = Some(Box::new(node));
     }
 
-    pub fn append_right_by_value(&mut self, value: Option<T>) {
+    pub fn append_right_by_value(&mut self, value: T) {
         let new_node = Some(Box::new(Self::new(value, None, None)));
         self.right = new_node;
     }
 
     pub fn append_right_by_node(&mut self, node: Node<T>) {
         self.right = Some(Box::new(node));
+    }
+
+    pub fn is_leaf(&self) -> bool {
+        self.left.is_none() && self.right.is_none()
     }
 
     fn has_child(&self) -> bool {
@@ -113,21 +115,17 @@ mod tests {
 
     #[test]
     fn test_init_char_node_successful() {
-        let left_node = Node::new(Some('a'), None, None);
-        let right_node = Node::new(Some('b'), None, None);
-        let _root_node = Node::new(
-            Some('c'),
-            Some(Box::new(left_node)),
-            Some(Box::new(right_node)),
-        );
+        let left_node = Node::new('a', None, None);
+        let right_node = Node::new('b', None, None);
+        let _root_node = Node::new('c', Some(Box::new(left_node)), Some(Box::new(right_node)));
     }
 
     #[test]
     fn test_init_string_node_successful() {
-        let left_node = Node::new(Some("left".to_string()), None, None);
-        let right_node = Node::new(Some("right".to_string()), None, None);
+        let left_node = Node::new("left".to_string(), None, None);
+        let right_node = Node::new("right".to_string(), None, None);
         let _root_node = Node::new(
-            Some("root".to_string()),
+            "root".to_string(),
             Some(Box::new(left_node)),
             Some(Box::new(right_node)),
         );
@@ -136,55 +134,55 @@ mod tests {
     #[test]
     fn test_get_value() {
         let value = "Hello world!";
-        let node = Node::new(Some(value), None, None);
+        let node = Node::new(value, None, None);
 
-        assert_eq!(*node.get_value(), Some(value));
+        assert_eq!(*node.get_value(), value);
     }
 
     #[test]
     fn test_left_nothing() {
-        let node = Node::new(Some(true), None, None);
+        let node = Node::new(true, None, None);
 
         assert!(node.left().is_none());
     }
 
     #[test]
     fn test_left() {
-        let left_node = Node::new(Some(true), None, None);
-        let node = Node::new(Some(true), Some(Box::new(left_node)), None);
+        let left_node = Node::new(true, None, None);
+        let node = Node::new(true, Some(Box::new(left_node)), None);
 
         assert!(node.left().is_some());
-        assert_eq!(*node.left().unwrap().get_value(), Some(true));
+        assert_eq!(*node.left().unwrap().get_value(), true);
         assert!(node.left().unwrap().left().is_none());
     }
 
     #[test]
     fn test_right_nothing() {
-        let node = Node::new(Some(true), None, None);
+        let node = Node::new(true, None, None);
 
         assert!(node.right().is_none());
     }
 
     #[test]
     fn test_right() {
-        let right_node = Node::new(Some(true), None, None);
-        let node = Node::new(Some(true), None, Some(Box::new(right_node)));
+        let right_node = Node::new(true, None, None);
+        let node = Node::new(true, None, Some(Box::new(right_node)));
 
         assert!(node.right().is_some());
-        assert_eq!(*node.right().unwrap().get_value(), Some(true));
+        assert_eq!(*node.right().unwrap().get_value(), true);
         assert!(node.right().unwrap().right().is_none());
     }
 
     #[test]
     fn test_append_left_by_value() {
-        let mut node = Node::new(Some(12), None, None);
+        let mut node = Node::new(12, None, None);
 
-        let left_value = Some(34);
+        let left_value = 34;
         node.append_left_by_value(left_value);
         assert!(node.left().is_some());
         assert_eq!(*node.left().unwrap().get_value(), left_value);
 
-        let new_left_value = Some(56);
+        let new_left_value = 56;
         node.append_left_by_value(new_left_value);
         assert!(node.left().is_some());
         assert_eq!(*node.left().unwrap().get_value(), new_left_value);
@@ -192,15 +190,15 @@ mod tests {
 
     #[test]
     fn test_append_left_by_node() {
-        let mut node = Node::new(Some(12), None, None);
+        let mut node = Node::new(12, None, None);
 
-        let left_value = Some(34);
+        let left_value = 34;
         let left_node = Node::new(left_value, None, None);
         node.append_left_by_node(left_node);
         assert!(node.left().is_some());
         assert_eq!(*node.left().unwrap().get_value(), left_value);
 
-        let new_left_value = Some(56);
+        let new_left_value = 56;
         let new_left_node = Node::new(new_left_value, None, None);
         node.append_left_by_node(new_left_node);
         assert!(node.left().is_some());
@@ -209,14 +207,14 @@ mod tests {
 
     #[test]
     fn test_append_right_by_value() {
-        let mut node = Node::new(Some(12), None, None);
+        let mut node = Node::new(12, None, None);
 
-        let right_value = Some(34);
+        let right_value = 34;
         node.append_right_by_value(right_value);
         assert!(node.right().is_some());
         assert_eq!(*node.right().unwrap().get_value(), right_value);
 
-        let new_right_value = Some(56);
+        let new_right_value = 56;
         node.append_right_by_value(new_right_value);
         assert!(node.right().is_some());
         assert_eq!(*node.right().unwrap().get_value(), new_right_value);
@@ -224,15 +222,15 @@ mod tests {
 
     #[test]
     fn test_append_right_by_node() {
-        let mut node = Node::new(Some(12), None, None);
+        let mut node = Node::new(12, None, None);
 
-        let right_value = Some(34);
+        let right_value = 34;
         let right_node = Node::new(right_value, None, None);
         node.append_right_by_node(right_node);
         assert!(node.right().is_some());
         assert_eq!(*node.right().unwrap().get_value(), right_value);
 
-        let new_right_value = Some(56);
+        let new_right_value = 56;
         let new_right_node = Node::new(new_right_value, None, None);
         node.append_right_by_node(new_right_node);
         assert!(node.right().is_some());
