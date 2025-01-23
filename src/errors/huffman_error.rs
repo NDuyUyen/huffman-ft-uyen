@@ -19,6 +19,12 @@ impl HuffmanError {
             kind: HuffmanErrorKind::ItemNotFound,
         }
     }
+    pub fn cannot_serialize_tree() -> Self {
+        Self {
+            msg: "Cannot serialize the Huffman tree".to_string(),
+            kind: HuffmanErrorKind::InvalidTree,
+        }
+    }
     pub fn encoding_error() -> Self {
         Self {
             msg: "Cannot encode text".to_string(),

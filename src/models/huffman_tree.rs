@@ -22,6 +22,10 @@ impl<T> HuffmanNode<T> {
             value: value,
         }
     }
+
+    pub fn get_value(&self) -> &Option<T> {
+        &self.value
+    }
 }
 
 impl<T> ToString for HuffmanNode<T>
@@ -71,6 +75,13 @@ where
     pub fn decode_by_path(&self, iter: &mut Iter<'_, bool>) -> Result<T, HuffmanError> {
         match &self.root {
             Some(root) => Self::get_value_by_path(Some(root), iter),
+            None => Err(HuffmanError::invalid_huffman_tree()),
+        }
+    }
+
+    pub fn serialize(&self) -> Result<String, HuffmanError> {
+        match &self.root {
+            Some(root) => Ok(Self::serialize_internal(root)),
             None => Err(HuffmanError::invalid_huffman_tree()),
         }
     }
@@ -131,6 +142,23 @@ where
                 }
             }
             None => Err(HuffmanError::invalid_huffman_tree()),
+        }
+    }
+
+    fn serialize_internal(node: &Node<HuffmanNode<T>>) -> String {
+        if node.is_leaf() {
+            return "1".to_string() + &node.get_value().get_value().unwrap().to_string();
+        } else {
+            let left_str = match node.left() {
+                Some(left_node) => Self::serialize_internal(left_node),
+                None => String::new(),
+            };
+            let right_str = match node.right() {
+                Some(right_node) => Self::serialize_internal(right_node),
+                None => String::new(),
+            };
+
+            return "0".to_string() + &left_str + &right_str;
         }
     }
 
@@ -451,5 +479,15 @@ mod tests {
         let mut iter = encoded_vec.iter();
 
         assert!(tree.decode_by_path(&mut iter).is_err());
+    }
+
+    #[test]
+    fn test_serialize() {
+        let text = "Welcome to my world!!!".to_string();
+        let text_as_chars: Vec<char> = text.chars().collect();
+        let tree = HuffmanTree::from(&text_as_chars);
+        let serializing_tree = tree.serialize().unwrap();
+
+        print!("{}", serializing_tree);
     }
 }
