@@ -25,6 +25,12 @@ impl HuffmanError {
             kind: HuffmanErrorKind::InvalidTree,
         }
     }
+    pub fn cannot_deserialize_tree() -> Self {
+        Self {
+            msg: "Cannot construct a Huffman tree using deserized text".to_string(),
+            kind: HuffmanErrorKind::DeserializingError,
+        }
+    }
     pub fn encoding_error() -> Self {
         Self {
             msg: "Cannot encode text".to_string(),
@@ -51,4 +57,5 @@ pub enum HuffmanErrorKind {
     ItemNotFound,
     EncodingError,
     DecodingError,
+    DeserializingError,
 }
