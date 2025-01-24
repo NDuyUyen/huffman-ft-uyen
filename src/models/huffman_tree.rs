@@ -8,18 +8,28 @@ use std::{
 
 use crate::errors::huffman_error::HuffmanError;
 
-use super::node::{self, Node};
+use super::node::Node;
 #[derive(Clone)]
 pub struct HuffmanNode<T> {
     freq: usize,
     value: Option<T>,
 }
 
-impl<T> HuffmanNode<T> {
+impl<T> HuffmanNode<T>
+where
+    T: ToString,
+{
     pub fn new(freq: usize, value: Option<T>) -> Self {
         Self {
             freq: freq,
             value: value,
+        }
+    }
+
+    pub fn get_value_as_string(&self) -> String {
+        match &self.value {
+            Some(v) => v.to_string(),
+            None => String::new(),
         }
     }
 }
@@ -230,6 +240,95 @@ where
     }
 }
 
+impl HuffmanTree<char> {
+    const CHAR_PARENT_NODE: char = '0';
+    const CHAR_LEAF_NODE: char = '1';
+
+    pub fn serialize(&self) -> String {
+        match &self.root {
+            Some(root) => Self::serialize_internal(root),
+            None => String::new(),
+        }
+    }
+
+    pub fn deserialize(text: String) -> Result<HuffmanTree<char>, HuffmanError> {
+        let chars_vec: Vec<char> = text.chars().collect();
+        let mut iter: std::slice::Iter<'_, char> = chars_vec.iter();
+
+        if iter.len() > 0 {
+            let root = HuffmanTree::deserialize_internal(&mut iter);
+
+            if iter.len() > 0 {
+                Err(HuffmanError::cannot_deserialize_tree())
+            } else {
+                match root {
+                    Ok(root) => Ok(Self { root: root }),
+                    Err(e) => Err(e),
+                }
+            }
+        } else {
+            Ok(Self { root: None })
+        }
+    }
+
+    fn serialize_internal(node: &Node<HuffmanNode<char>>) -> String {
+        if node.is_leaf() {
+            return Self::CHAR_LEAF_NODE.to_string() + &node.get_value().get_value_as_string();
+        } else {
+            let left_str = match node.left() {
+                Some(left_node) => Self::serialize_internal(left_node),
+                None => String::new(),
+            };
+            let right_str = match node.right() {
+                Some(right_node) => Self::serialize_internal(right_node),
+                None => String::new(),
+            };
+
+            return Self::CHAR_PARENT_NODE.to_string() + &left_str + &right_str;
+        }
+    }
+
+    fn deserialize_internal(
+        iter: &mut Iter<'_, char>,
+    ) -> Result<Option<Node<HuffmanNode<char>>>, HuffmanError> {
+        match iter.next() {
+            Some(n) => {
+                if *n == Self::CHAR_PARENT_NODE {
+                    let mut has_child = false;
+                    let left = match HuffmanTree::deserialize_internal(iter)? {
+                        Some(l) => {
+                            has_child = true;
+                            Some(Box::new(l))
+                        }
+                        None => None,
+                    };
+                    let right = match HuffmanTree::deserialize_internal(iter)? {
+                        Some(r) => {
+                            has_child = true;
+                            Some(Box::new(r))
+                        }
+                        None => None,
+                    };
+
+                    if has_child {
+                        Ok(Some(Node::new(HuffmanNode::new(0, None), left, right)))
+                    } else {
+                        Err(HuffmanError::cannot_deserialize_tree())
+                    }
+                } else if *n == Self::CHAR_LEAF_NODE {
+                    match iter.next() {
+                        Some(c) => Ok(Some(Node::new(HuffmanNode::new(0, Some(*c)), None, None))),
+                        None => Err(HuffmanError::cannot_deserialize_tree()),
+                    }
+                } else {
+                    Err(HuffmanError::cannot_deserialize_tree())
+                }
+            }
+            None => Ok(None),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::vec;
@@ -386,8 +485,9 @@ mod tests {
 
     #[test]
     fn test_from() {
-        let value = "Welcome to my world!!!".as_bytes();
-        let tree = HuffmanTree::from(value);
+        let text = "Welcome to my world!!!".to_string();
+        let text_as_chars: Vec<char> = text.chars().collect();
+        let tree = HuffmanTree::from(&text_as_chars);
 
         tree.print_tree_pretty();
     }
@@ -451,5 +551,75 @@ mod tests {
         let mut iter = encoded_vec.iter();
 
         assert!(tree.decode_by_path(&mut iter).is_err());
+    }
+
+    #[test]
+    fn test_serialize() {
+        let text = "Welcome to my world!!!".to_string();
+        let text_as_chars: Vec<char> = text.chars().collect();
+        let tree = HuffmanTree::from(&text_as_chars);
+        let result = tree.serialize();
+        let expect = "00001t1r01y1w01e01W01d1c001o1!01 01m1l".to_string();
+
+        assert_eq!(result, expect);
+    }
+
+    #[test]
+    fn test_deserialize_successful() {
+        let input = "00001t1r01y1w01e01W01d1c001o1!01 01m1l".to_string();
+        let tree = HuffmanTree::deserialize(input.clone());
+        let serialized_text = tree.unwrap().serialize();
+
+        assert_eq!(serialized_text, input);
+
+        let input = "00001t1r01y1w01e01W01d1c001o1!01 01m".to_string();
+        let tree = HuffmanTree::deserialize(input.clone());
+        let serialized_text = tree.unwrap().serialize();
+
+        assert_eq!(serialized_text, input);
+
+        let input = "1c".to_string();
+        let tree = HuffmanTree::deserialize(input.clone());
+        let serialized_text = tree.unwrap().serialize();
+
+        assert_eq!(serialized_text, input);
+
+        let input = String::new();
+        let tree = HuffmanTree::deserialize(input.clone());
+        let serialized_text = tree.unwrap().serialize();
+
+        assert_eq!(serialized_text, input);
+
+        let text = "Welcome to my world - 12312121 00 233 ~@#$%%& #fbdfd af !!!".to_string();
+        let text_as_chars: Vec<char> = text.chars().collect();
+        let tree = HuffmanTree::from(&text_as_chars);
+        let serialized_text_1 = tree.serialize();
+        let deserialized_tree = HuffmanTree::deserialize(serialized_text_1.clone());
+        let serialized_text_2 = deserialized_tree.unwrap().serialize();
+
+        assert_eq!(serialized_text_1, serialized_text_2);
+    }
+
+    #[test]
+    fn test_deserialize_failed() {
+        let input = "00001t1r01y1w01e01W01d1c001o1!01 01m1l03".to_string();
+        let tree = HuffmanTree::deserialize(input);
+        assert!(tree.is_err());
+
+        let input = "00001t1r01y1w01e01W01d1c001o1!01 0".to_string();
+        let tree = HuffmanTree::deserialize(input);
+        assert!(tree.is_err());
+
+        let input = "00001t1r01y1w01e01W01d1c001o1!01 01m1".to_string();
+        let tree = HuffmanTree::deserialize(input);
+        assert!(tree.is_err());
+
+        let input = "00001t1r01y1w01e01W01d1c001o1!1.1,".to_string();
+        let tree = HuffmanTree::deserialize(input);
+        assert!(tree.is_err());
+
+        let input = "00001t1r01y1w01e01W01d1c00".to_string();
+        let tree = HuffmanTree::deserialize(input);
+        assert!(tree.is_err());
     }
 }
