@@ -1,17 +1,17 @@
-use std::process::id;
-
-const BASE_2_EXP: &'static [u8] = &[64, 32, 16, 8, 4, 2, 1];
-const FORM_7: usize = 7;
-
-pub fn vec_bool_to_string(bits: Vec<bool>) -> String {
+pub fn vec_bool_to_string(bits: &Vec<bool>, form: usize) -> String {
     let mut result = String::new();
     let mut idx = 0;
+    let mut base_2_exp = vec![0u8; form];
 
-    while bits.len() - idx >= FORM_7 {
+    for i in 0..form {
+        base_2_exp[form - i - 1] = 2u8.pow(i as u32);
+    }
+
+    while bits.len() - idx >= form {
         let mut dec: u8 = 0;
-        for e in 0..FORM_7 {
+        for e in 0..form {
             if bits[idx] {
-                dec += BASE_2_EXP[e];
+                dec += base_2_exp[e];
             }
             idx += 1;
         }
@@ -33,7 +33,7 @@ mod tests {
             t, f, f, t, f, f, f, t, t, t, f, t, f, t, t, t, f, f, t, t, f, t, t, f, f, t, t, f, t,
             t, f, t, t, f, t, t, t, f, f, f, f, t, t, t, f, t, t, t, f,
         ];
-        let result = vec_bool_to_string(bits.to_vec());
+        let result = vec_bool_to_string(&bits.to_vec(), 7);
         assert_eq!(result, "Huffman");
 
         // Add more bits
@@ -41,7 +41,7 @@ mod tests {
             t, f, f, t, f, f, f, t, t, t, f, t, f, t, t, t, f, f, t, t, f, t, t, f, f, t, t, f, t,
             t, f, t, t, f, t, t, t, f, f, f, f, t, t, t, f, t, t, t, f, f, f,
         ];
-        let result = vec_bool_to_string(bits.to_vec());
+        let result = vec_bool_to_string(&bits.to_vec(), 7);
         assert_eq!(result, "Huffman");
     }
 }

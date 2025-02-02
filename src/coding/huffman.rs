@@ -1,5 +1,6 @@
-use super::super::errors::huffman_error::HuffmanError;
-use super::super::models::huffman_tree::HuffmanTree;
+use crate::errors::huffman_error::HuffmanError;
+use crate::models::huffman_tree::HuffmanTree;
+use crate::utils::type_converting::vec_bool_to_string;
 
 #[derive(Clone)]
 pub struct HuffmanEncodingResult {
@@ -8,6 +9,8 @@ pub struct HuffmanEncodingResult {
 }
 
 impl HuffmanEncodingResult {
+    const ASCII_FORM: usize = 7;
+
     pub fn new(huffman_tree: HuffmanTree<char>, encoded_vec: Vec<bool>) -> Self {
         Self {
             huffman_tree: huffman_tree,
@@ -21,6 +24,26 @@ impl HuffmanEncodingResult {
 
     pub fn get_huffman_tree(&self) -> &HuffmanTree<char> {
         &self.huffman_tree
+    }
+
+    pub fn serialize(&mut self) -> String {
+        let mut encoded_vec = self.encoded_vec.clone();
+        let filled_bits = HuffmanEncodingResult::fill_bits(&mut encoded_vec);
+        let tree_str = self.huffman_tree.serialize();
+        let encoded_vec_str =
+            vec_bool_to_string(&mut encoded_vec, HuffmanEncodingResult::ASCII_FORM);
+
+        return format!("{}-{}-{}", filled_bits, tree_str, encoded_vec_str);
+    }
+
+    fn fill_bits(bits: &mut Vec<bool>) -> usize {
+        let bits_should_fill =
+            HuffmanEncodingResult::ASCII_FORM - (bits.len() % HuffmanEncodingResult::ASCII_FORM);
+        for _ in 0..bits_should_fill {
+            bits.push(false);
+        }
+
+        bits_should_fill
     }
 }
 
@@ -183,5 +206,16 @@ mod tests {
 
         assert!(decoded_result.is_err());
         assert_eq!(decoded_result, Err(HuffmanError::decoding_error()));
+    }
+
+    #[test]
+    fn test_serialize() {
+        let text = "Huffman-ft-uyen".to_string();
+        let mut encode_result = StandardHuffmanCoding::encode(&text).unwrap();
+        let serialize_result = encode_result.serialize();
+        assert_eq!(
+            serialize_result,
+            "1-001f01n1-0001y1t1u001a1H01m1e-m\u{7}1\u{19}\u{17}1t"
+        );
     }
 }

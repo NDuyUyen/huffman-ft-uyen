@@ -1,4 +1,4 @@
-use std::{error::Error, fmt};
+use std::fmt;
 
 #[derive(Debug, PartialEq)]
 pub struct HuffmanError {
