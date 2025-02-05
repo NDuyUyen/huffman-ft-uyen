@@ -26,7 +26,7 @@ impl HuffmanEncodingResult {
         &self.huffman_tree
     }
 
-    pub fn serialize(&mut self) -> String {
+    pub fn serialize(&self) -> String {
         let mut encoded_vec = self.encoded_vec.clone();
         let filled_bits = HuffmanEncodingResult::fill_bits(&mut encoded_vec);
         let tree_str = self.huffman_tree.serialize();
@@ -64,7 +64,7 @@ impl HuffmanDecodingResult {
     }
 }
 
-trait HuffmanCoding {
+pub trait HuffmanCoding {
     fn encode(text: &String) -> Result<HuffmanEncodingResult, HuffmanError>;
     fn decode(
         huffman_tree: HuffmanTree<char>,
