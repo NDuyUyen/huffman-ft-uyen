@@ -1,6 +1,6 @@
 use std::fmt;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct HuffmanError {
     pub msg: String,
     pub kind: HuffmanErrorKind,
@@ -27,7 +27,7 @@ impl HuffmanError {
     }
     pub fn cannot_deserialize_tree() -> Self {
         Self {
-            msg: "Cannot construct a Huffman tree using deserized text".to_string(),
+            msg: "Cannot deserialize the input".to_string(),
             kind: HuffmanErrorKind::DeserializingError,
         }
     }
@@ -51,7 +51,7 @@ impl fmt::Display for HuffmanError {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum HuffmanErrorKind {
     InvalidTree,
     ItemNotFound,

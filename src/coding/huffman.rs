@@ -1,6 +1,6 @@
 use crate::errors::huffman_error::HuffmanError;
 use crate::models::huffman_tree::HuffmanTree;
-use crate::utils::type_converting::vec_bool_to_string;
+use crate::utils::type_converting;
 
 #[derive(Clone)]
 pub struct HuffmanEncodingResult {
@@ -10,6 +10,7 @@ pub struct HuffmanEncodingResult {
 
 impl HuffmanEncodingResult {
     const ASCII_FORM: usize = 7;
+    const DELIMITER: &str = "-";
 
     pub fn new(huffman_tree: HuffmanTree<char>, encoded_vec: Vec<bool>) -> Self {
         Self {
@@ -28,12 +29,53 @@ impl HuffmanEncodingResult {
 
     pub fn serialize(&self) -> String {
         let mut encoded_vec = self.encoded_vec.clone();
-        let filled_bits = HuffmanEncodingResult::fill_bits(&mut encoded_vec);
+        let filled_bits = Self::fill_bits(&mut encoded_vec);
         let tree_str = self.huffman_tree.serialize();
+        let tree_size = tree_str.len();
         let encoded_vec_str =
-            vec_bool_to_string(&mut encoded_vec, HuffmanEncodingResult::ASCII_FORM);
+            type_converting::vec_bool_to_string(&mut encoded_vec, Self::ASCII_FORM);
 
-        return format!("{}-{}-{}", filled_bits, tree_str, encoded_vec_str);
+        let components_list = vec![
+            filled_bits.to_string(),
+            tree_size.to_string(),
+            tree_str + &encoded_vec_str,
+        ];
+
+        return components_list.join(Self::DELIMITER);
+    }
+
+    pub fn deserialize(input: String) -> Result<HuffmanEncodingResult, HuffmanError> {
+        let error = HuffmanError::cannot_deserialize_tree();
+
+        match input.split_once(HuffmanEncodingResult::DELIMITER) {
+            Some((filled_bits_str, remaining)) => {
+                let filled_bits = type_converting::str_to_usize(filled_bits_str)
+                    .map_err(|_| error.clone())
+                    .unwrap();
+
+                match remaining.split_once(HuffmanEncodingResult::DELIMITER) {
+                    Some((tree_size_str, remaining)) => {
+                        let tree_size = type_converting::str_to_usize(tree_size_str)
+                            .map_err(|_| error.clone())
+                            .unwrap();
+
+                        let (tree_str, encoded_str) = remaining.split_at(tree_size as usize);
+                        let huffman_tree = HuffmanTree::deserialize(tree_str.to_string())
+                            .map_err(|_| error.clone())
+                            .unwrap();
+
+                        let encoded_vec = HuffmanEncodingResult::calculate_encoded_vec(
+                            encoded_str,
+                            filled_bits as usize,
+                        );
+
+                        Ok(HuffmanEncodingResult::new(huffman_tree, encoded_vec))
+                    }
+                    None => Err(error),
+                }
+            }
+            None => Err(error),
+        }
     }
 
     fn fill_bits(bits: &mut Vec<bool>) -> usize {
@@ -44,6 +86,13 @@ impl HuffmanEncodingResult {
         }
 
         bits_should_fill
+    }
+
+    fn calculate_encoded_vec(input: &str, filled_bits: usize) -> Vec<bool> {
+        let mut full_vec = type_converting::string_to_vec_bool(input);
+        let new_len = full_vec.len() - filled_bits;
+
+        full_vec.split_off(new_len)
     }
 }
 
@@ -215,7 +264,7 @@ mod tests {
         let serialize_result = encode_result.serialize();
         assert_eq!(
             serialize_result,
-            "1-001f01n1-0001y1t1u001a1H01m1e-m\u{7}1\u{19}\u{17}1t"
+            "1-29-001f01n1-0001y1t1u001a1H01m1em\u{7}1\u{19}\u{17}1t"
         );
     }
 }
