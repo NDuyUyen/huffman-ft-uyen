@@ -1,4 +1,4 @@
-use std::{num::ParseIntError, result};
+use std::num::ParseIntError;
 
 pub fn vec_bool_to_string(bits: &Vec<bool>, form: usize) -> String {
     let mut result = String::new();
@@ -22,13 +22,14 @@ pub fn vec_bool_to_string(bits: &Vec<bool>, form: usize) -> String {
     result
 }
 
-pub fn string_to_vec_bool(input: &str) -> Vec<bool> {
+pub fn string_to_vec_bool(input: &str, size: usize) -> Vec<bool> {
     let mut result: Vec<bool> = vec![];
     let chars_vec: Vec<char> = input.chars().collect();
 
     chars_vec.into_iter().for_each(|c| {
         let ascii_dec = c as usize;
-        let mut vec = usize_to_vec_bool(ascii_dec);
+        let mut vec = usize_to_vec_bool(ascii_dec, size);
+
         result.append(&mut vec);
     });
 
@@ -42,7 +43,7 @@ pub fn str_to_usize(input: &str) -> Result<usize, ParseIntError> {
     }
 }
 
-fn usize_to_vec_bool(mut num: usize) -> Vec<bool> {
+fn usize_to_vec_bool(mut num: usize, size: usize) -> Vec<bool> {
     let mut result: Vec<bool> = vec![];
 
     while num >= 2 {
@@ -55,7 +56,7 @@ fn usize_to_vec_bool(mut num: usize) -> Vec<bool> {
     } else {
         result.push(true);
     }
-
+    result.resize(size, false);
     result.into_iter().rev().collect()
 }
 
@@ -86,13 +87,15 @@ mod tests {
 
     #[test]
     fn test_usize_to_vec_bool() {
-        assert_eq!(usize_to_vec_bool(0), vec![false]);
-        assert_eq!(usize_to_vec_bool(1), vec![true]);
-        assert_eq!(usize_to_vec_bool(2), vec![true, false]);
-        assert_eq!(usize_to_vec_bool(3), vec![true, true]);
-        assert_eq!(usize_to_vec_bool(4), vec![true, false, false]);
+        assert_eq!(usize_to_vec_bool(0, 1), vec![false]);
+        assert_eq!(usize_to_vec_bool(0, 2), vec![false, false]);
+        assert_eq!(usize_to_vec_bool(1, 1), vec![true]);
+        assert_eq!(usize_to_vec_bool(1, 3), vec![false, false, true]);
+        assert_eq!(usize_to_vec_bool(2, 2), vec![true, false]);
+        assert_eq!(usize_to_vec_bool(3, 2), vec![true, true]);
+        assert_eq!(usize_to_vec_bool(4, 3), vec![true, false, false]);
         assert_eq!(
-            usize_to_vec_bool(132),
+            usize_to_vec_bool(132, 8),
             vec![true, false, false, false, false, true, false, false]
         );
     }
@@ -106,6 +109,6 @@ mod tests {
             t, f, t, t, f, t, t, t, f, f, f, f, t, t, t, f, t, t, t, f,
         ];
 
-        assert_eq!(string_to_vec_bool("Huffman"), expect);
+        assert_eq!(string_to_vec_bool("Huffman", 7), expect);
     }
 }

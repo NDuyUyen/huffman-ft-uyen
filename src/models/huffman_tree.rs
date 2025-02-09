@@ -232,7 +232,7 @@ where
         nodes
     }
 
-    fn print_tree_pretty(&self) {
+    pub fn print_tree_pretty(&self) {
         match self.get_root() {
             Some(root) => root.represent_tree(),
             None => {}

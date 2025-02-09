@@ -10,6 +10,11 @@ impl CompressionError {
         let msg: String = format!("Cannot compress text input: {}", detail);
         Self { msg: msg }
     }
+
+    pub fn cannot_decompress_text(detail: String) -> Self {
+        let msg: String = format!("Cannot decompress text input: {}", detail);
+        Self { msg: msg }
+    }
 }
 
 impl fmt::Display for CompressionError {
