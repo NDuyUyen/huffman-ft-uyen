@@ -1,13 +1,17 @@
-use super::super::errors::huffman_error::HuffmanError;
-use super::super::models::huffman_tree::HuffmanTree;
+use crate::errors::huffman_error::HuffmanError;
+use crate::models::huffman_tree::HuffmanTree;
+use crate::utils::type_converting;
 
 #[derive(Clone)]
-pub struct HuffmanEncodingResult {
+pub struct HuffmanEncoding {
     huffman_tree: HuffmanTree<char>,
     encoded_vec: Vec<bool>,
 }
 
-impl HuffmanEncodingResult {
+impl HuffmanEncoding {
+    const ASCII_FORM: usize = 7;
+    const DELIMITER: &str = "-";
+
     pub fn new(huffman_tree: HuffmanTree<char>, encoded_vec: Vec<bool>) -> Self {
         Self {
             huffman_tree: huffman_tree,
@@ -22,14 +26,83 @@ impl HuffmanEncodingResult {
     pub fn get_huffman_tree(&self) -> &HuffmanTree<char> {
         &self.huffman_tree
     }
+
+    pub fn serialize(&self) -> String {
+        let mut encoded_vec = self.encoded_vec.clone();
+        let filled_bits = Self::fill_bits(&mut encoded_vec);
+        let tree_str = self.huffman_tree.serialize();
+        let tree_size = tree_str.len();
+        let encoded_vec_str =
+            type_converting::vec_bool_to_string(&mut encoded_vec, Self::ASCII_FORM);
+
+        let components_list = vec![
+            filled_bits.to_string(),
+            tree_size.to_string(),
+            tree_str + &encoded_vec_str,
+        ];
+
+        return components_list.join(Self::DELIMITER);
+    }
+
+    pub fn deserialize(input: String) -> Result<HuffmanEncoding, HuffmanError> {
+        let error = HuffmanError::cannot_deserialize_tree();
+
+        match input.split_once(HuffmanEncoding::DELIMITER) {
+            Some((filled_bits_str, remaining)) => {
+                let filled_bits = type_converting::str_to_usize(filled_bits_str)
+                    .map_err(|_| error.clone())
+                    .unwrap();
+
+                match remaining.split_once(HuffmanEncoding::DELIMITER) {
+                    Some((tree_size_str, remaining)) => {
+                        let tree_size = type_converting::str_to_usize(tree_size_str)
+                            .map_err(|_| error.clone())
+                            .unwrap();
+
+                        let (tree_str, encoded_str) = remaining.split_at(tree_size as usize);
+                        let huffman_tree = HuffmanTree::deserialize(tree_str.to_string())
+                            .map_err(|_| error.clone())
+                            .unwrap();
+
+                        let encoded_vec = HuffmanEncoding::calculate_encoded_vec(
+                            encoded_str,
+                            filled_bits as usize,
+                        );
+
+                        Ok(HuffmanEncoding::new(huffman_tree, encoded_vec))
+                    }
+                    None => Err(error),
+                }
+            }
+            None => Err(error),
+        }
+    }
+
+    fn fill_bits(bits: &mut Vec<bool>) -> usize {
+        let bits_should_fill =
+            HuffmanEncoding::ASCII_FORM - (bits.len() % HuffmanEncoding::ASCII_FORM);
+        for _ in 0..bits_should_fill {
+            bits.push(false);
+        }
+
+        bits_should_fill
+    }
+
+    fn calculate_encoded_vec(input: &str, filled_bits: usize) -> Vec<bool> {
+        let mut full_vec = type_converting::string_to_vec_bool(input, HuffmanEncoding::ASCII_FORM);
+        let new_len = full_vec.len() - filled_bits;
+
+        let _ = full_vec.split_off(new_len);
+        full_vec
+    }
 }
 
 #[derive(Debug, PartialEq)]
-pub struct HuffmanDecodingResult {
+pub struct HuffmanDecoding {
     decoded_text: String,
 }
 
-impl HuffmanDecodingResult {
+impl HuffmanDecoding {
     pub fn new(decoded_text: String) -> Self {
         Self {
             decoded_text: decoded_text,
@@ -41,17 +114,17 @@ impl HuffmanDecodingResult {
     }
 }
 
-trait HuffmanCoding {
-    fn encode(text: &String) -> Result<HuffmanEncodingResult, HuffmanError>;
+pub trait HuffmanCoding {
+    fn encode(text: &String) -> Result<HuffmanEncoding, HuffmanError>;
     fn decode(
         huffman_tree: HuffmanTree<char>,
         encoded_vec: Vec<bool>,
-    ) -> Result<HuffmanDecodingResult, HuffmanError>;
+    ) -> Result<HuffmanDecoding, HuffmanError>;
 }
 pub struct StandardHuffmanCoding {}
 
 impl HuffmanCoding for StandardHuffmanCoding {
-    fn encode(text: &String) -> Result<HuffmanEncodingResult, HuffmanError> {
+    fn encode(text: &String) -> Result<HuffmanEncoding, HuffmanError> {
         let char_vec: Vec<char> = text.chars().collect();
         let tree = HuffmanTree::from(&char_vec);
         let encoding_map = tree.get_encoding_map();
@@ -73,13 +146,13 @@ impl HuffmanCoding for StandardHuffmanCoding {
             Err(e) => Err(e),
         }?;
 
-        Ok(HuffmanEncodingResult::new(tree, encoded_vec))
+        Ok(HuffmanEncoding::new(tree, encoded_vec))
     }
 
     fn decode(
         huffman_tree: HuffmanTree<char>,
         encoded_vec: Vec<bool>,
-    ) -> Result<HuffmanDecodingResult, HuffmanError> {
+    ) -> Result<HuffmanDecoding, HuffmanError> {
         let mut iter: std::slice::Iter<'_, bool> = encoded_vec.iter();
         let mut decoded_text = String::new();
 
@@ -90,7 +163,7 @@ impl HuffmanCoding for StandardHuffmanCoding {
             }
         }
 
-        Ok(HuffmanDecodingResult::new(decoded_text))
+        Ok(HuffmanDecoding::new(decoded_text))
     }
 }
 
@@ -183,5 +256,35 @@ mod tests {
 
         assert!(decoded_result.is_err());
         assert_eq!(decoded_result, Err(HuffmanError::decoding_error()));
+    }
+
+    #[test]
+    fn test_serialize() {
+        let text = "Welcome to my world!!!".to_string();
+        let encode_result = StandardHuffmanCoding::encode(&text).unwrap();
+        let serialize_result = encode_result.serialize();
+        assert_eq!(
+            serialize_result,
+            "5-38-00001t1r01y1w01e01W01d1c001o1!01 01m1l2{sK\u{2}7\u{b}\u{e}\u{7}n[ "
+        );
+    }
+
+    #[test]
+    fn test_deserialize_successful() {
+        let input = "5-38-00001t1r01y1w01e01W01d1c001o1!01 01m1l2{sK\u{2}7\u{b}\u{e}\u{7}n[ ";
+        let wrapped_encoding_result = HuffmanEncoding::deserialize(input.to_string());
+
+        assert!(wrapped_encoding_result.is_ok());
+
+        let encoding_result = wrapped_encoding_result.unwrap();
+        let tree = encoding_result.get_huffman_tree().clone();
+        let encoded_vec = encoding_result.get_encoded_vec().clone();
+        let wrapped_decoding_result = StandardHuffmanCoding::decode(tree, encoded_vec);
+
+        assert!(wrapped_decoding_result.is_ok());
+        assert_eq!(
+            wrapped_decoding_result.unwrap().decoded_text,
+            "Welcome to my world!!!"
+        );
     }
 }
