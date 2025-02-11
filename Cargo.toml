@@ -7,3 +7,4 @@ edition = "2021"
 bitvec = "1.0.1"
 get-size = "=0.1.4"
 serde = { version = "1.0", features = ["derive"] }
+structopt = "0.3.26"
