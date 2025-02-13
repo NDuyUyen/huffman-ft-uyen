@@ -1,2 +1,3 @@
 pub mod cli;
-pub mod converter;
+mod converter;
+mod file;
