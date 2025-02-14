@@ -1,6 +1,5 @@
-use log::{debug, error, info, warn};
-use std::{io::Error, path, str::FromStr};
-
+use log::{error, info};
+use std::{io::Error, str::FromStr};
 use structopt::StructOpt;
 
 use super::{converter, file};
@@ -69,12 +68,18 @@ impl Opt {
                         IOType::File => {
                             let result = file::write_file(&self.output, &output);
                             match result {
-                                Ok(_) => info!("Successfully!!!"),
+                                Ok(_) => {
+                                    info!("Successfully!!!");
+                                    info!("Original length: {}", input.len());
+                                    info!("New length: {}", output.len());
+                                }
                                 Err(e) => Opt::print_error(&e.msg),
                             }
                         }
                         IOType::Text => {
-                            println!("Output: ```{:?}```", output);
+                            info!("Output: ```{:?}```", output);
+                            info!("Original length: {}", input.len());
+                            info!("New length: {}", output.len());
                         }
                     },
                     Err(e) => Opt::print_error(&e.msg),

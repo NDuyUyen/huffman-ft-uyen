@@ -1,5 +1,5 @@
 use std::{
-    fs::File,
+    fs::{remove_file, File},
     io::{Read, Write},
 };
 
@@ -33,7 +33,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_read_file_content() {
+    fn test_read_file_content_successful() {
         let path = "data/sample_1.txt".to_string();
         let result = read_file_content(&path);
 
@@ -47,5 +47,25 @@ mod tests {
         let result = read_file_content(&path);
 
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_write_file_content_successful() {
+        let path = "data/output_1.txt".to_string();
+        let content = "This is the outout 1.";
+        let _ = remove_file(&path);
+        let result = write_file(&path, content);
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_write_file_content_failed() {
+        let path = "data/sample_1.txt".to_string();
+        let content = "This is the output 1.";
+        let result = write_file(&path, content);
+
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), FileError::file_already_existed(&path));
     }
 }
