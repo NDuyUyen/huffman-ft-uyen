@@ -10,7 +10,7 @@ pub struct HuffmanEncoding {
 
 impl HuffmanEncoding {
     const ASCII_FORM: usize = 7;
-    const DELIMITER: &str = "-";
+    const DELIMITER: &'static str = "-";
 
     pub fn new(huffman_tree: HuffmanTree<char>, encoded_vec: Vec<bool>) -> Self {
         Self {
