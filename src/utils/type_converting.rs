@@ -17,7 +17,7 @@ pub fn vec_bool_to_string(bits: &Vec<bool>, form: usize) -> String {
             }
             idx += 1;
         }
-        result = result + &format!("{}", dec as char);
+        result = result + &(dec as char).to_string();
     }
     result
 }
