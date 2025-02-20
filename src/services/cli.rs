@@ -39,11 +39,11 @@ impl FromStr for IOType {
 pub struct Opt {
     #[structopt(subcommand)]
     command: Command,
-    #[structopt(short = "i", long = "input-type", default_value = "TEXT")]
+    #[structopt(short = "i", long = "input-type", default_value = "FILE")]
     input_type: IOType,
     #[structopt(long)]
     input: String,
-    #[structopt(short = "o", long = "output-type", default_value = "TEXT")]
+    #[structopt(short = "o", long = "output-type", default_value = "FILE")]
     output_type: IOType,
     #[structopt(long)]
     output: String,
