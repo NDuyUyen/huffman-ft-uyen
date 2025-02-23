@@ -1,8 +1,8 @@
+use super::file;
+use huffman;
 use log::{error, info};
 use std::{io::Error, str::FromStr};
 use structopt::StructOpt;
-
-use super::{converter, file};
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "cmd", about = "Command")]
@@ -59,8 +59,8 @@ impl Opt {
         match input {
             Ok(input) => {
                 let output = match self.command {
-                    Command::Compress => converter::compress(&input),
-                    Command::Decompress => converter::decompress(&input),
+                    Command::Compress => huffman::compress(&input),
+                    Command::Decompress => huffman::decompress(&input),
                 };
 
                 match output {
