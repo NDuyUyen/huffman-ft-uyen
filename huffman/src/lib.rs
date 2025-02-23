@@ -1,7 +1,10 @@
-use crate::{
-    coding::huffman::{HuffmanCoding, HuffmanEncoding, StandardHuffmanCoding},
-    errors::compression_error::CompressionError,
-};
+mod coding;
+mod errors;
+mod models;
+mod utils;
+
+use coding::huffman::{HuffmanCoding, HuffmanEncoding, StandardHuffmanCoding};
+use errors::compression_error::CompressionError;
 
 pub fn compress(text: &String) -> Result<String, CompressionError> {
     match <StandardHuffmanCoding as HuffmanCoding>::encode(&text) {

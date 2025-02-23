@@ -5,8 +5,12 @@ pub fn vec_bool_to_string(bits: &Vec<bool>, form: usize) -> String {
     let mut idx = 0;
     let mut base_2_exp = vec![0u8; form];
 
-    for i in 0..form {
-        base_2_exp[form - i - 1] = 2u8.pow(i as u32);
+    if form > 0 {
+        base_2_exp[form - 1] = 1;
+
+        for i in 1..form {
+            base_2_exp[form - i - 1] = base_2_exp[form - i] * 2;
+        }
     }
 
     while bits.len() - idx >= form {
@@ -17,7 +21,7 @@ pub fn vec_bool_to_string(bits: &Vec<bool>, form: usize) -> String {
             }
             idx += 1;
         }
-        result = result + &format!("{}", dec as char);
+        result = result + &(dec as char).to_string();
     }
     result
 }
@@ -51,11 +55,7 @@ fn usize_to_vec_bool(mut num: usize, size: usize) -> Vec<bool> {
         num = num / 2 as usize;
     }
 
-    if num == 0 {
-        result.push(false);
-    } else {
-        result.push(true);
-    }
+    result.push(num != 0);
     result.resize(size, false);
     result.into_iter().rev().collect()
 }

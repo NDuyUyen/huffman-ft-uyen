@@ -102,12 +102,17 @@ where
                     }
                 } else {
                     let mut left_based_path = path.clone();
+
                     left_based_path.push(false);
-                    let left_result =
-                        Self::collect_paths(node.left(), collection, left_based_path).unwrap();
-                    let mut right_based_path = path.clone();
-                    right_based_path.push(true);
-                    Self::collect_paths(node.right(), left_result, right_based_path)
+                    match Self::collect_paths(node.left(), collection, left_based_path) {
+                        Ok(left_result) => {
+                            let mut right_based_path = path.clone();
+
+                            right_based_path.push(true);
+                            Self::collect_paths(node.right(), left_result, right_based_path)
+                        }
+                        Err(_) => Err(HuffmanError::invalid_huffman_tree()),
+                    }
                 }
             }
             None => Ok(collection),
@@ -175,13 +180,12 @@ where
 
         while nodes.len() > 0 {
             if nodes.len() == 1 {
-                let min = nodes.pop().unwrap();
-                root = Some(Self::combine(Some(min), None));
+                root = Some(Self::combine(nodes.pop(), None));
                 break;
             } else {
-                let min_1 = nodes.pop().unwrap();
-                let min_2 = nodes.pop().unwrap();
-                let new_node = Self::combine(Some(min_1), Some(min_2));
+                let min_1 = nodes.pop();
+                let min_2 = nodes.pop();
+                let new_node = Self::combine(min_1, min_2);
 
                 if nodes.len() == 0 {
                     root = Some(new_node);
@@ -295,25 +299,33 @@ impl HuffmanTree<char> {
             Some(n) => {
                 if *n == Self::CHAR_PARENT_NODE {
                     let mut has_child = false;
-                    let left = match HuffmanTree::deserialize_internal(iter)? {
-                        Some(l) => {
-                            has_child = true;
-                            Some(Box::new(l))
-                        }
-                        None => None,
-                    };
-                    let right = match HuffmanTree::deserialize_internal(iter)? {
-                        Some(r) => {
-                            has_child = true;
-                            Some(Box::new(r))
-                        }
-                        None => None,
-                    };
+                    let wrapped_left_node = HuffmanTree::deserialize_internal(iter);
+                    let wrapped_right_node = HuffmanTree::deserialize_internal(iter);
 
-                    if has_child {
-                        Ok(Some(Node::new(HuffmanNode::new(0, None), left, right)))
-                    } else {
-                        Err(HuffmanError::cannot_deserialize_tree())
+                    match (wrapped_left_node, wrapped_right_node) {
+                        (Ok(wrapped_left_node), Ok(wrapped_right_node)) => {
+                            let left = match wrapped_left_node {
+                                Some(node) => {
+                                    has_child = true;
+                                    Some(Box::new(node))
+                                }
+                                None => None,
+                            };
+                            let right = match wrapped_right_node {
+                                Some(node) => {
+                                    has_child = true;
+                                    Some(Box::new(node))
+                                }
+                                None => None,
+                            };
+
+                            if has_child {
+                                Ok(Some(Node::new(HuffmanNode::new(0, None), left, right)))
+                            } else {
+                                Err(HuffmanError::cannot_deserialize_tree())
+                            }
+                        }
+                        _ => Err(HuffmanError::cannot_deserialize_tree()),
                     }
                 } else if *n == Self::CHAR_LEAF_NODE {
                     match iter.next() {

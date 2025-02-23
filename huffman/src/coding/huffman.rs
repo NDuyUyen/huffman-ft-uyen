@@ -49,27 +49,30 @@ impl HuffmanEncoding {
 
         match input.split_once(HuffmanEncoding::DELIMITER) {
             Some((filled_bits_str, remaining)) => {
-                let filled_bits = type_converting::str_to_usize(filled_bits_str)
-                    .map_err(|_| error.clone())
-                    .unwrap();
-
                 match remaining.split_once(HuffmanEncoding::DELIMITER) {
                     Some((tree_size_str, remaining)) => {
-                        let tree_size = type_converting::str_to_usize(tree_size_str)
-                            .map_err(|_| error.clone())
-                            .unwrap();
+                        match type_converting::str_to_usize(tree_size_str) {
+                            Ok(tree_size) => {
+                                let (tree_str, encoded_str) =
+                                    remaining.split_at(tree_size as usize);
 
-                        let (tree_str, encoded_str) = remaining.split_at(tree_size as usize);
-                        let huffman_tree = HuffmanTree::deserialize(tree_str.to_string())
-                            .map_err(|_| error.clone())
-                            .unwrap();
+                                match (
+                                    type_converting::str_to_usize(filled_bits_str),
+                                    HuffmanTree::deserialize(tree_str.to_string()),
+                                ) {
+                                    (Ok(filled_bits), Ok(huffman_tree)) => {
+                                        let encoded_vec = HuffmanEncoding::calculate_encoded_vec(
+                                            encoded_str,
+                                            filled_bits as usize,
+                                        );
 
-                        let encoded_vec = HuffmanEncoding::calculate_encoded_vec(
-                            encoded_str,
-                            filled_bits as usize,
-                        );
-
-                        Ok(HuffmanEncoding::new(huffman_tree, encoded_vec))
+                                        Ok(HuffmanEncoding::new(huffman_tree, encoded_vec))
+                                    }
+                                    _ => Err(error.clone()),
+                                }
+                            }
+                            Err(_) => Err(error.clone()),
+                        }
                     }
                     None => Err(error),
                 }
@@ -132,7 +135,7 @@ impl HuffmanCoding for StandardHuffmanCoding {
 
         match encoding_map {
             Ok(encoding_map) => {
-                char_vec
+                match char_vec
                     .into_iter()
                     .try_for_each(|c| match encoding_map.get(&c) {
                         Some(encoded_c) => {
@@ -140,13 +143,13 @@ impl HuffmanCoding for StandardHuffmanCoding {
                             Ok(())
                         }
                         None => Err(HuffmanError::not_found_in_tree()),
-                    })?;
-                Ok(())
+                    }) {
+                    Ok(()) => Ok(HuffmanEncoding::new(tree, encoded_vec)),
+                    Err(e) => Err(e),
+                }
             }
             Err(e) => Err(e),
-        }?;
-
-        Ok(HuffmanEncoding::new(tree, encoded_vec))
+        }
     }
 
     fn decode(

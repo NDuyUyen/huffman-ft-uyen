@@ -1,9 +1,10 @@
+use std::fmt;
 use std::{
     fs::{remove_file, File},
     io::{Read, Write},
 };
 
-use crate::errors::file_error::FileError;
+// use crate::errors::file_error::FileError;
 
 pub fn read_file_content(path: &str) -> Result<String, FileError> {
     match File::open(path) {
@@ -25,6 +26,39 @@ pub fn write_file(path: &str, content: &str) -> Result<(), FileError> {
             Err(_) => Err(FileError::cannot_write_file(path)),
         },
         Err(_) => Err(FileError::file_already_existed(path)),
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct FileError {
+    pub msg: String,
+}
+
+impl FileError {
+    pub fn cannot_open_file(path: &str) -> Self {
+        let msg: String = format!("There is an error when trying to open file: {}", path);
+        Self { msg: msg }
+    }
+
+    pub fn cannot_read_file(path: &str) -> Self {
+        let msg: String = format!("There is an error when trying to read file: {}", path);
+        Self { msg: msg }
+    }
+
+    pub fn cannot_write_file(path: &str) -> Self {
+        let msg: String = format!("There is an error when trying to write file: {}", path);
+        Self { msg: msg }
+    }
+
+    pub fn file_already_existed(path: &str) -> Self {
+        let msg: String = format!("This file has already existed: {}", path);
+        Self { msg: msg }
+    }
+}
+
+impl fmt::Display for FileError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Error: {}", &self.msg)
     }
 }
 
